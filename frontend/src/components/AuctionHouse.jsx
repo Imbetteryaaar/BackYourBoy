@@ -3,69 +3,57 @@ import React, { useState } from 'react';
 export default function AuctionHouse({ auctionState, myTeam, isBacker, isBoy, onBid, onBullshit }) {
   const isMyTurn = auctionState.turn === myTeam;
   const currentBid = auctionState.current_bid;
-  
-  // Local state for the input
   const [bidAmount, setBidAmount] = useState(currentBid + 1);
 
-  return (
-    <div className="max-w-2xl mx-auto mt-10 text-center">
-      <h2 className="text-3xl font-black mb-2 text-yellow-400">THE AUCTION</h2>
-      <p className="text-gray-400 mb-8">Backers are debating. Boys stay silent.</p>
+  const increment = () => setBidAmount(b => b + 1);
+  const decrement = () => setBidAmount(b => Math.max(currentBid + 1, b - 1));
 
-      {/* STATUS BOARD */}
-      <div className="bg-slate-800 p-8 rounded-2xl mb-8 border-4 border-indigo-900">
-        <div className="text-gray-500 uppercase text-sm font-bold">Current Highest Bid</div>
-        <div className="text-8xl font-black my-4 text-white">{currentBid}</div>
+  return (
+    <div className="max-w-md mx-auto min-h-[70vh] flex flex-col">
+      <div className="text-center mb-6">
+        <h2 className="text-3xl font-black text-black tracking-tighter uppercase transform -rotate-2">BIDDING WAR</h2>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center fun-card mb-6 relative p-8">
+        <div className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2">Current Bid</div>
+        <div className="text-9xl font-black text-black z-10">{currentBid}</div>
         {auctionState.holding_team && (
-          <div className="text-xl text-indigo-400">
-            Held by Team {auctionState.holding_team}
-          </div>
+             <div className={`mt-2 px-4 py-2 rounded-full text-sm font-black border-2 border-black ${auctionState.holding_team === 'A' ? 'bg-pop-pink text-white' : 'bg-pop-blue text-white'}`}>
+                HELD BY TEAM {auctionState.holding_team === 'A' ? 'PINK' : 'BLUE'}
+             </div>
         )}
       </div>
 
-      {/* CONTROLS */}
-      {isBoy ? (
-        <div className="bg-black bg-opacity-30 p-4 rounded text-gray-400 italic">
-          You are the "Boy". You must remain silent while your Backer negotiates your fate.
-        </div>
-      ) : isBacker ? (
-        isMyTurn ? (
-          <div className="bg-slate-700 p-6 rounded-xl animate-pulse-slow">
-            <h3 className="text-xl font-bold mb-4 text-green-400">IT'S YOUR TURN!</h3>
-            
-            <div className="flex gap-4 justify-center items-end">
-              <div>
-                <label className="block text-sm mb-1 text-gray-400">Your Bid</label>
-                <input 
-                  type="number" 
-                  min={currentBid + 1}
-                  value={bidAmount}
-                  onChange={e => setBidAmount(parseInt(e.target.value))}
-                  className="p-3 rounded text-slate-900 font-bold text-2xl w-24 text-center"
-                />
-              </div>
-              <button 
-                onClick={() => onBid(bidAmount)}
-                className="bg-green-500 hover:bg-green-600 text-slate-900 font-bold px-6 py-3 rounded-lg text-lg">
-                BID {bidAmount}
-              </button>
+      <div className="min-h-[180px]">
+        {isBoy ? (
+            <div className="h-full flex items-center justify-center bg-gray-100 border-4 border-gray-300 rounded-3xl p-6 text-center border-dashed">
+                <span className="text-4xl mr-4">🤐</span>
+                <p className="text-gray-400 font-bold">Shh! Let the backer talk.</p>
             </div>
-
-            <div className="my-4 text-gray-500">- OR -</div>
-
-            <button 
-              onClick={onBullshit}
-              disabled={currentBid === 0} // Can't call BS on 0
-              className="bg-red-500 hover:bg-red-600 text-white font-bold px-8 py-3 rounded-lg w-full disabled:opacity-50 disabled:cursor-not-allowed">
-              CALL "BULLSHIT!"
-            </button>
-          </div>
+        ) : isBacker ? (
+            isMyTurn ? (
+                <div className="fun-card p-4 animate-pop border-4 border-green-500">
+                    <div className="flex items-center justify-between mb-4 bg-gray-100 rounded-xl p-2 border-2 border-gray-200">
+                        <button onClick={decrement} className="w-12 h-12 bg-white border-2 border-black rounded-lg font-black text-xl active:bg-gray-200">-</button>
+                        <div className="text-3xl font-black">{bidAmount}</div>
+                        <button onClick={increment} className="w-12 h-12 bg-white border-2 border-black rounded-lg font-black text-xl active:bg-gray-200">+</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => onBid(bidAmount)} className="btn-primary py-3">BID</button>
+                        <button onClick={onBullshit} disabled={currentBid === 0} className="bg-red-500 text-white border-4 border-black shadow-hard rounded-xl font-black hover:bg-red-600 active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:grayscale">
+                            BULLSHIT!
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="h-full flex items-center justify-center bg-white/50 border-4 border-transparent rounded-3xl p-6 text-center">
+                    <div className="animate-pulse font-bold text-gray-400">Waiting for opponent...</div>
+                </div>
+            )
         ) : (
-          <div className="text-xl text-gray-400">Waiting for other team...</div>
-        )
-      ) : (
-        <div className="text-gray-500">Watching the Backers fight...</div>
-      )}
+             <div className="text-center text-gray-400 font-bold py-10">Watching the show... 🍿</div>
+        )}
+      </div>
     </div>
   );
 }

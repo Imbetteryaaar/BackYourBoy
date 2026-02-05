@@ -5,80 +5,68 @@ export default function MainMenu({ onJoin }) {
   const [name, setName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [avatar, setAvatar] = useState(genConfig());
-  const [mode, setMode] = useState("MENU"); // MENU, JOIN, CUSTOMIZE
+  const [mode, setMode] = useState("HOME"); 
 
   const handleCreate = async () => {
-    // Fetch a random code from backend
     const res = await fetch("http://localhost:8000/api/create-room");
     const data = await res.json();
     onJoin(name, avatar, data.room_code);
   };
 
-  if (mode === "CUSTOMIZE") {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-        <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center w-96">
-          <h2 className="text-2xl font-bold mb-4">Customize</h2>
-          <div className="w-32 h-32 mx-auto mb-4">
-             <Avatar style={{ width: '100%', height: '100%' }} {...avatar} />
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-cream">
+      {/* Decorative Blobs */}
+      <div className="absolute top-10 left-10 w-32 h-32 bg-pop-pink rounded-full border-4 border-black opacity-20"></div>
+      <div className="absolute bottom-10 right-10 w-40 h-40 bg-pop-blue rounded-full border-4 border-black opacity-20"></div>
+
+      <div className="relative z-10 w-full max-w-md text-center">
+        <h1 className="text-6xl font-black text-white text-stroke-3 mb-6 tracking-tighter drop-shadow-[4px_4px_0_#000]" style={{ WebkitTextStroke: "3px black" }}>
+          BACK<br/>YOUR<br/>BOY
+        </h1>
+
+        <div className="fun-card p-6 transform rotate-1 hover:rotate-0 transition duration-300">
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-24 h-24 rounded-full border-4 border-black mb-3 bg-white shadow-hard-sm">
+               <Avatar style={{ width: '100%', height: '100%' }} {...avatar} />
+            </div>
+            <button onClick={() => setAvatar(genConfig())} className="text-xs font-bold underline hover:text-pop-blue">
+              🎲 Randomize Look
+            </button>
           </div>
-          <button onClick={() => setAvatar(genConfig())} className="text-blue-400 text-sm mb-6 hover:underline">Randomize Look</button>
+
           <input 
-            className="w-full p-3 rounded bg-slate-700 text-white mb-4 border border-slate-600 focus:border-yellow-400 outline-none"
-            placeholder="Enter your nickname"
+            className="w-full p-4 rounded-xl border-4 border-black text-center font-bold text-xl mb-6 focus:shadow-hard focus:outline-none placeholder-gray-400"
+            placeholder="YOUR NAME"
             value={name}
             onChange={e => setName(e.target.value)}
           />
-          <button 
-            disabled={!name}
-            onClick={() => setMode("MENU")}
-            className="w-full bg-green-500 py-3 rounded-lg font-bold hover:bg-green-600 disabled:opacity-50">
-            Confirm Identity
-          </button>
-        </div>
-      </div>
-    );
-  }
 
-  return (
-    <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-      <h1 className="text-5xl font-black text-yellow-400 mb-10 tracking-tighter">BACK YOUR BOY</h1>
-      
-      <div className="bg-slate-800 p-8 rounded-2xl w-96 shadow-2xl">
-        <div className="flex items-center gap-4 mb-8 bg-slate-700 p-4 rounded-lg cursor-pointer hover:bg-slate-600" onClick={() => setMode("CUSTOMIZE")}>
-          <div className="w-12 h-12"><Avatar style={{ width: '100%', height: '100%' }} {...avatar} /></div>
-          <div>
-            <div className="text-xs text-gray-400">Playing as</div>
-            <div className="font-bold text-lg">{name || "Guest (Click to Edit)"}</div>
-          </div>
-        </div>
-
-        <button 
-          onClick={handleCreate}
-          disabled={!name}
-          className="w-full bg-indigo-600 py-4 rounded-xl font-bold text-xl mb-4 hover:bg-indigo-700 transition disabled:opacity-50">
-          HOST NEW GAME
-        </button>
-
-        <div className="relative mb-4">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-600"></div></div>
-          <div className="relative flex justify-center text-sm"><span className="px-2 bg-slate-800 text-gray-400">OR</span></div>
-        </div>
-
-        <div className="flex gap-2">
-          <input 
-            value={roomCode}
-            onChange={e => setRoomCode(e.target.value.toUpperCase())}
-            maxLength={4}
-            placeholder="CODE"
-            className="w-24 p-3 text-center font-mono font-bold text-xl rounded-lg bg-slate-900 border border-slate-600 uppercase"
-          />
-          <button 
-            onClick={() => onJoin(name, avatar, roomCode)}
-            disabled={!name || roomCode.length !== 4}
-            className="flex-1 bg-slate-700 py-3 rounded-lg font-bold hover:bg-slate-600 disabled:opacity-50">
-            JOIN ROOM
-          </button>
+          {mode === "HOME" ? (
+            <div className="flex flex-col gap-3">
+              <button onClick={handleCreate} disabled={!name} className="btn-primary py-4 text-xl disabled:opacity-50">
+                HOST GAME
+              </button>
+              <button onClick={() => setMode("JOIN")} disabled={!name} className="bg-white border-4 border-black shadow-hard rounded-xl font-bold py-4 text-lg hover:bg-gray-50 disabled:opacity-50">
+                JOIN ROOM
+              </button>
+            </div>
+          ) : (
+            <div>
+              <input 
+                value={roomCode}
+                onChange={e => setRoomCode(e.target.value.toUpperCase())}
+                maxLength={4}
+                placeholder="CODE"
+                className="w-full p-4 rounded-xl border-4 border-black text-center font-mono font-black text-3xl mb-4 focus:shadow-hard focus:outline-none uppercase"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => setMode("HOME")} className="flex-1 font-bold border-4 border-transparent hover:underline">Back</button>
+                <button onClick={() => onJoin(name, avatar, roomCode)} disabled={roomCode.length !== 4} className="flex-[2] btn-primary py-3 disabled:opacity-50">
+                    ENTER
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

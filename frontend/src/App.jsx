@@ -43,13 +43,9 @@ function App() {
       };
 
       ws.current.onclose = (event) => {
-        console.log("Socket closed", event.code);
         ws.current = null;
-        
-        // --- FIX: HANDLE ERROR CODES EXPLICITLY ---
-        if (event.code === 4000 || event.code === 4004) {
+        if (event.code === 4000) {
             setConnectionStatus("ERROR_ROOM_NOT_FOUND");
-            // We DO NOT reset player/roomCode here, so we can show the error screen
         } else {
             setConnectionStatus("DISCONNECTED");
         }
@@ -76,86 +72,77 @@ function App() {
     }
   };
 
-  // --- RENDER VIEWS ---
-  
-  // 1. MAIN MENU
-  if (!player || !roomCode) {
-      return <MainMenu onJoin={handleJoin} />;
-  }
+  // --- VIEWS ---
 
-  // 2. ERROR SCREEN (The Fix)
+  if (!player || !roomCode) return <MainMenu onJoin={handleJoin} />;
+
   if (connectionStatus === "ERROR_ROOM_NOT_FOUND") {
       return (
-        <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-            <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center border-2 border-red-500">
-                <h2 className="text-3xl font-black text-red-500 mb-4">ROOM NOT FOUND</h2>
-                <p className="text-gray-300 mb-2">Room Code <strong>{roomCode}</strong> does not exist.</p>
-                <p className="text-gray-500 text-sm mb-8">Please check the code and try again.</p>
-                
-                <button 
-                    onClick={resetToMenu}
-                    className="w-full bg-white text-slate-900 font-bold py-3 rounded-lg hover:bg-gray-200 transition">
-                    TRY AGAIN
-                </button>
+        <div className="flex flex-col items-center justify-center h-screen bg-cream p-6 text-center">
+            <div className="fun-card p-8 max-w-sm w-full animate-pop">
+                <div className="text-6xl mb-4">🏠❓</div>
+                <h2 className="text-2xl font-black text-red-500 mb-2">Room Not Found</h2>
+                <p className="text-gray-500 mb-6">We couldn't find room <strong>{roomCode}</strong>.</p>
+                <button onClick={resetToMenu} className="w-full btn-primary py-4">Try Another Code</button>
             </div>
         </div>
       );
   }
 
-  // 3. LOADING SCREEN
   if (connectionStatus === "CONNECTING" || !gameState) {
       return (
-        <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-            <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mb-6"></div>
-            <div className="text-2xl font-bold tracking-widest">CONNECTING...</div>
+        <div className="flex flex-col items-center justify-center h-screen bg-cream">
+            <div className="w-20 h-20 border-8 border-black border-t-transparent rounded-full animate-spin mb-6"></div>
+            <div className="text-xl font-black tracking-widest animate-pulse">CONNECTING...</div>
         </div>
       );
   }
 
-  // 4. DISCONNECTED SCREEN
   if (connectionStatus === "DISCONNECTED") {
     return (
-        <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-white">
-            <h2 className="text-3xl font-bold mb-4 text-red-500">Connection Lost</h2>
-            <button 
-                onClick={() => window.location.reload()}
-                className="bg-yellow-400 text-slate-900 px-6 py-3 rounded-lg font-bold hover:scale-105 transition">
-                Reconnect
-            </button>
+        <div className="flex flex-col items-center justify-center h-screen bg-cream p-6 text-center">
+             <div className="fun-card p-8 max-w-sm w-full animate-pop border-red-500">
+                <div className="text-6xl mb-4">🔌</div>
+                <h2 className="text-2xl font-black text-red-500 mb-4">Connection Lost</h2>
+                <button onClick={() => window.location.reload()} className="w-full btn-primary py-4">Reconnect</button>
+            </div>
         </div>
     );
   }
 
-  // 5. GAME UI
   const mySyncedPlayer = gameState.players.find(p => p.id === player.id);
   const myTeam = mySyncedPlayer ? mySyncedPlayer.team : "A"; 
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white font-sans">
-      {/* HEADER */}
+    <div className="min-h-screen font-sans pb-10">
       {gameState.status !== "GAME_OVER" && (
-          <div className="p-4 bg-slate-800 flex justify-between items-center shadow-lg border-b border-slate-700">
-            <div className="flex items-center gap-4">
-                <h1 className="text-xl font-black text-yellow-400 italic">BYB</h1>
-                <span className="bg-slate-700 px-2 py-1 rounded text-xs font-mono">Room: {roomCode}</span>
-                <span className="text-xs text-gray-400">Round {gameState.current_round}</span>
-            </div>
-            <div className="flex gap-4">
-              <div className="bg-red-900 border border-red-500 px-3 py-1 rounded font-bold">Team A: {gameState.scores.A}</div>
-              <div className="bg-blue-900 border border-blue-500 px-3 py-1 rounded font-bold">Team B: {gameState.scores.B}</div>
+          <div className="pt-4 px-4 pb-2 flex justify-center sticky top-0 z-50">
+            <div className="bg-white border-4 border-black shadow-hard px-6 py-2 rounded-full flex items-center gap-6">
+                <div className="flex flex-col items-center">
+                    <span className="text-[10px] font-black tracking-widest text-pop-pink">TEAM A</span>
+                    <span className="text-2xl font-black leading-none">{gameState.scores.A}</span>
+                </div>
+                <div className="h-8 w-[2px] bg-black/10"></div>
+                <div className="flex flex-col items-center">
+                    <div className="text-black font-black italic tracking-tighter text-xl">BYB</div>
+                    <span className="text-[10px] bg-black text-white px-2 rounded-md font-bold">{roomCode}</span>
+                </div>
+                <div className="h-8 w-[2px] bg-black/10"></div>
+                <div className="flex flex-col items-center">
+                    <span className="text-[10px] font-black tracking-widest text-pop-blue">TEAM B</span>
+                    <span className="text-2xl font-black leading-none">{gameState.scores.B}</span>
+                </div>
             </div>
           </div>
       )}
 
-      {/* DISCONNECT ALERT */}
       {gameState.abort_reason && (
-          <div className="bg-red-600 text-white p-4 text-center font-bold text-xl animate-bounce">
-              ⚠️ {gameState.abort_reason} ⚠️ <br/>
-              <span className="text-sm font-normal">Game reset to Lobby. Please wait for players to rejoin.</span>
+          <div className="mx-4 mt-4 bg-red-100 border-4 border-red-500 text-red-600 p-4 rounded-2xl text-center font-bold animate-bounce shadow-hard">
+              🚨 {gameState.abort_reason}
           </div>
       )}
 
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto px-4 mt-6">
         {gameState.status === "LOBBY" && (
           <Lobby 
             gameState={gameState} 
@@ -163,7 +150,8 @@ function App() {
             onStart={() => sendAction("START_GAME")}
             onSettingChange={(t, r) => sendAction("UPDATE_SETTINGS", {timer: t, rounds: r})}
             onSwitchTeam={(tid, nteam) => sendAction("SWITCH_TEAM", {target_id: tid, new_team: nteam})}
-          />
+            onExit={resetToMenu}
+            />
         )}
         
         {gameState.status === "NOMINATION" && (
@@ -173,6 +161,10 @@ function App() {
             myTeam={myTeam}
             votes={gameState.votes} 
             onVote={(targetId) => sendAction("CAST_VOTE", { target_id: targetId, team: myTeam })} 
+            isHost={player.id === gameState.host_id}
+            onReroll={() => sendAction("CHANGE_TASK")}
+            // --- NEW PROP HERE ---
+            onCustomTask={(text) => sendAction("SET_CUSTOM_TASK", { task: text })}
           />
         )}
         
@@ -194,10 +186,14 @@ function App() {
             isActiveTeam={gameState.round_result.active_team === myTeam}
             isBoy={gameState.boys[myTeam] === player.id}
             timeLimit={gameState.settings.timer}
+            // LIVE TYPING PROPS
+            onLiveUpdate={(bubbles) => sendAction("LIVE_TYPING", { bubbles })} 
             onSubmit={(answers) => sendAction("SUBMIT_ANSWERS", { answers })}
             onGiveUp={() => sendAction("GIVE_UP")}
+            liveBubbles={gameState.round_result.live_bubbles || []}
           />
         )}
+
 
         {gameState.status === "VALIDATION" && (
           <ValidationScreen 

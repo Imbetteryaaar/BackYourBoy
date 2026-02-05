@@ -2,7 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Optional: Dark mode background by default */
 body {
-  @apply bg-slate-900 text-white;
+  @apply bg-cream text-ink overflow-x-hidden;
+  /* subtle dot pattern */
+  background-image: radial-gradient(#2D3436 1px, transparent 1px);
+  background-size: 24px 24px; 
+  min-height: 100vh;
+}
+
+/* THE NEW CARD STYLE: Thick border, hard shadow, white fill */
+.fun-card {
+  @apply bg-white border-4 border-black shadow-hard rounded-3xl;
+}
+
+/* BUTTONS */
+.btn-primary {
+  @apply bg-pop-yellow border-4 border-black shadow-hard rounded-xl font-black uppercase tracking-widest active:translate-y-1 active:shadow-none transition-all hover:bg-yellow-300;
+}
+
+.glass-panel {
+  /* Retaining glass panel class for compatibility, but styled to match Pop Art */
+  @apply bg-white border-4 border-black shadow-hard rounded-3xl;
 }

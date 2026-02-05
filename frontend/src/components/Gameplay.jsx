@@ -1,111 +1,100 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-export default function Gameplay({ task, target, isActiveTeam, isBoy, timeLimit, onSubmit, onGiveUp }) {
+export default function Gameplay({ 
+  task, target, isActiveTeam, isBoy, timeLimit, 
+  onSubmit, onGiveUp, onLiveUpdate, liveBubbles 
+}) {
   const [timeLeft, setTimeLeft] = useState(timeLimit); 
-  const [bubbles, setBubbles] = useState([]);
+  const [localBubbles, setLocalBubbles] = useState([]);
   const [currentInput, setCurrentInput] = useState("");
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (timeLeft > 0) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
     } else if (isActiveTeam && isBoy) {
-      // Time is up! Submit what we have.
-      onSubmit(bubbles);
+      onSubmit(localBubbles);
     }
-  }, [timeLeft, bubbles]);
+  }, [timeLeft]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (currentInput.trim()) {
-        const newBubbles = [...bubbles, currentInput.trim()];
-        setBubbles(newBubbles);
+    if (e.key === 'Enter') { e.preventDefault(); addBubble(); }
+  };
+
+  const addBubble = () => {
+    if (currentInput.trim()) {
+        const newBubbles = [...localBubbles, currentInput.trim()];
+        setLocalBubbles(newBubbles);
         setCurrentInput("");
+        onLiveUpdate(newBubbles); // Broadcast to spectators
         
-        // AUTO-WIN LOGIC: If we hit the target
-        if (newBubbles.length >= target) {
-          onSubmit(newBubbles);
-        }
-      }
+        if (newBubbles.length >= target) onSubmit(newBubbles);
+        setTimeout(() => inputRef.current?.focus(), 10);
     }
   };
 
   const removeBubble = (index) => {
-    // Optional: Clicking a bubble removes it and puts text back in input to edit
-    const word = bubbles[index];
-    setBubbles(bubbles.filter((_, i) => i !== index));
-    setCurrentInput(word); // Put it back to edit
+    const newBubbles = localBubbles.filter((_, i) => i !== index);
+    setLocalBubbles(newBubbles);
+    onLiveUpdate(newBubbles); 
+    inputRef.current?.focus();
   };
 
+  // Switch between local state (for the active Boy) and server state (for everyone else)
+  const displayBubbles = (isActiveTeam && isBoy) ? localBubbles : liveBubbles;
+
   return (
-    <div className="flex flex-col items-center mt-6 w-full max-w-4xl mx-auto">
-      {/* HEADER */}
-      <div className="flex justify-between w-full items-center mb-6">
-        <div className={`text-5xl font-mono font-black ${timeLeft < 10 ? "text-red-500" : "text-white"}`}>
-          00:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}
-        </div>
+    <div className="max-w-2xl mx-auto h-[80vh] flex flex-col relative">
+      <div className="flex justify-between items-end mb-4 px-2">
+        <div className={`text-6xl font-black leading-none ${timeLeft < 10 ? "text-red-500 animate-pulse" : "text-black"}`}>{timeLeft}</div>
         <div className="text-right">
-          <div className="text-sm text-gray-400">TARGET</div>
-          <div className="text-3xl font-bold text-yellow-400">{bubbles.length} / {target}</div>
+            <div className="text-xs font-bold text-gray-400 uppercase">Target</div>
+            <div className="text-4xl font-black text-pop-blue leading-none">{displayBubbles.length}/{target}</div>
         </div>
       </div>
 
-      <div className="bg-slate-800 p-6 rounded-xl w-full text-center mb-8 border border-slate-700">
-        <h2 className="text-gray-400 uppercase text-xs tracking-widest mb-2">TASK</h2>
-        <div className="text-2xl font-bold text-white">{task}</div>
+      <div className="fun-card p-4 text-center mb-4 bg-pop-yellow transform -rotate-1">
+        <h2 className="text-black/50 text-[10px] font-black tracking-widest mb-1">CATEGORY</h2>
+        <div className="text-2xl font-black text-black leading-tight">{task}</div>
       </div>
 
-      {isActiveTeam ? (
-        isBoy ? (
-          <div className="w-full">
-            {/* BUBBLE CONTAINER */}
-            <div className="bg-white p-4 rounded-xl min-h-[200px] flex flex-wrap content-start gap-2 mb-4 cursor-text" onClick={() => document.getElementById('game-input').focus()}>
-              {bubbles.map((word, idx) => (
-                <div key={idx} 
-                  onClick={(e) => { e.stopPropagation(); removeBubble(idx); }}
-                  className="bg-indigo-600 text-white px-3 py-1 rounded-full font-bold flex items-center gap-2 cursor-pointer hover:bg-red-500 transition animate-bounce-short">
-                  {word}
-                  <span className="text-xs opacity-70">✕</span>
+      <div className="flex-1 overflow-y-auto content-start flex flex-wrap gap-2 p-2 mb-24 transition-all">
+        {displayBubbles.map((word, idx) => (
+            <div key={idx} 
+                 onClick={() => (isActiveTeam && isBoy) ? removeBubble(idx) : null}
+                 className={`
+                    bg-white border-2 border-black px-4 py-2 rounded-full font-bold text-lg shadow-hard-sm flex gap-2 animate-pop
+                    ${(isActiveTeam && isBoy) ? "cursor-pointer hover:bg-red-100" : ""}
+                 `}>
+                {word} 
+                {(isActiveTeam && isBoy) && <span className="text-red-500 text-xs">✕</span>}
+            </div>
+        ))}
+      </div>
+
+      {isActiveTeam && isBoy ? (
+            <div className="fixed bottom-0 left-0 w-full p-4 bg-white border-t-4 border-black z-20">
+                <div className="max-w-2xl mx-auto flex gap-2">
+                    <input 
+                        ref={inputRef} autoFocus value={currentInput}
+                        onChange={(e) => setCurrentInput(e.target.value)} onKeyDown={handleKeyDown}
+                        placeholder="Type here..."
+                        className="flex-1 bg-gray-100 border-2 border-black rounded-xl px-4 py-3 font-bold text-lg focus:outline-none focus:bg-white"
+                    />
+                    <button onClick={addBubble} className="bg-green-500 border-2 border-black text-white p-3 rounded-xl font-black shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">⏎</button>
                 </div>
-              ))}
-              <input 
-                id="game-input"
-                autoFocus
-                value={currentInput}
-                onChange={(e) => setCurrentInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={bubbles.length === 0 ? "Type answer & hit Enter..." : ""}
-                className="bg-transparent text-slate-900 font-bold outline-none flex-1 min-w-[150px]"
-              />
+                <div className="max-w-2xl mx-auto flex justify-between mt-2">
+                    <button onClick={onGiveUp} className="text-xs font-bold text-red-500 hover:underline">GIVE UP</button>
+                    {displayBubbles.length > 0 && <button onClick={() => onSubmit(localBubbles)} className="text-xs font-bold text-green-600 hover:underline">SUBMIT NOW</button>}
+                </div>
             </div>
-            
-            <div className="flex gap-4">
-              <button 
-                onClick={onGiveUp}
-                className="flex-1 bg-red-900 text-red-200 py-3 rounded-lg font-bold hover:bg-red-800 transition">
-                GIVE UP (Point to Opponent)
-              </button>
-              {bubbles.length > 0 && (
-                 <button 
-                   onClick={() => onSubmit(bubbles)}
-                   className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition">
-                   SUBMIT EARLY
-                 </button>
-              )}
-            </div>
-            <p className="text-center text-gray-500 text-sm mt-2">Click a bubble to edit/delete it.</p>
-          </div>
-        ) : (
-          <div className="text-center animate-pulse text-2xl font-bold text-green-400 mt-10">
-            Wait for your Boy... <br/>
-            <span className="text-white text-lg font-normal">They have named {bubbles.length} items.</span>
-          </div>
-        )
       ) : (
-        <div className="text-center opacity-50 mt-10">
-          <p className="text-xl">Opponent is typing...</p>
-        </div>
+             <div className="fixed bottom-10 left-0 w-full text-center px-4 pointer-events-none">
+                <div className="fun-card inline-block px-8 py-4 bg-pop-pink text-white font-black animate-bounce shadow-hard">
+                    {isActiveTeam ? "📣 CHEER FOR YOUR BOY!" : "👀 WATCHING..."}
+                </div>
+             </div>
       )}
     </div>
   );

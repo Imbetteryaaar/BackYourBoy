@@ -5,9 +5,34 @@ import string
 import asyncio
 from typing import Dict, List
 
+# --- EXPANDED TASK LIST (Add as many as you want here) ---
 TASKS = [
-    "Name brands of CARS", "Name types of CHEESE", "Name countries in AFRICA",
-    "Name Harry Potter characters", "Name Programming Languages", "Name Marvel Movies"
+    # BRANDS
+    "Name brands of CARS", "Name types of CHEESE", "Name Luxury Fashion Brands", "Name Fast Food Chains",
+    "Name Soda Brands", "Name Smartphone Manufacturers", "Name Shoe Brands", "Name Cereal Brands",
+    "Name Car Rental Companies", "Name Airline Companies", "Name Makeup Brands", "Name Video Game Consoles",
+    
+    # GEOGRAPHY
+    "Name countries in AFRICA", "Name Capital Cities in Europe", "Name US States", "Name Rivers in the World",
+    "Name Mountains", "Name Islands in the Caribbean", "Name Countries starting with S", "Name Cities in Japan",
+    "Name Oceans and Seas", "Name Deserts", "Name Australian Cities", "Name Countries in South America",
+
+    # POP CULTURE
+    "Name Harry Potter characters", "Name Marvel Movies", "Name Star Wars Characters", "Name Pokémon",
+    "Name Pixar Movies", "Name Game of Thrones Houses", "Name Friends Characters", "Name Taylor Swift Songs",
+    "Name James Bond Actors", "Name Netflix Original Series", "Name Disney Princesses", "Name Rappers",
+    "Name Rock Bands from the 70s", "Name Oscar Winning Movies", "Name Anime Series", "Name Superheroes",
+
+    # KNOWLEDGE
+    "Name Programming Languages", "Name Elements on the Periodic Table", "Name Bones in the Human Body",
+    "Name Planets in the Solar System", "Name Breeds of Dogs", "Name Types of Pasta", "Name Fruits that are Red",
+    "Name Vegetables that grow underground", "Name Currency names", "Name Mathematical Shapes",
+    "Name Chess Pieces", "Name Musical Instruments", "Name Languages spoken in India", "Name Nobel Prize Winners",
+
+    # MISC
+    "Name Things you find in a Bathroom", "Name Things that are Sticky", "Name Things that are Yellow",
+    "Name Things you bring Camping", "Name Jobs that require a Uniform", "Name Sports played with a Ball",
+    "Name Board Games", "Name Card Games", "Name Pizza Toppings", "Name Ice Cream Flavors"
 ]
 
 def generate_room_code():
@@ -18,10 +43,9 @@ class ConnectionManager:
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self.game_states: Dict[str, dict] = {}
 
-    # --- NEW: Explicitly create room via API only ---
     def create_room(self, room_code: str):
         self.game_states[room_code] = {
-            "host_id": None, # Will be set when first player joins
+            "host_id": None,
             "status": "LOBBY",
             "settings": {"timer": 60, "max_rounds": 3},
             "current_round": 1,
@@ -30,28 +54,23 @@ class ConnectionManager:
             "scores": {"A": 0, "B": 0},
             "votes": {},
             "auction": {"current_bid": 0, "holding_team": None},
-            "round_result": {},
+            "round_result": {"answers": [], "target": 0, "active_team": None, "live_bubbles": []},
             "boys": {"A": None, "B": None},
             "backers": {"A": None, "B": None},
             "last_message": None,
-            "abort_reason": None # New field for disconnect alerts
+            "abort_reason": None
         }
         self.active_connections[room_code] = []
 
     async def connect(self, websocket: WebSocket, room_code: str, player_id: str):
-        # 1. ACCEPT FIRST (Crucial for sending error codes)
         await websocket.accept()
         
-        # 2. THEN CHECK if room exists
         if room_code not in self.game_states:
-            # Now the browser will actually receive this 4000 code
             await websocket.close(code=4000) 
             return False
 
-        # 3. If room exists, add player
         self.active_connections[room_code].append(websocket)
         
-        # If this is the first player, make them Host
         game = self.game_states[room_code]
         if game["host_id"] is None:
             game["host_id"] = player_id
@@ -65,26 +84,21 @@ class ConnectionManager:
             
             game = self.game_states.get(room_code)
             if game:
-                # Find who disconnected
                 leaver = next((p for p in game["players"] if p["id"] == player_id), None)
                 leaver_name = leaver["name"] if leaver else "Unknown"
 
-                # Remove player data
                 game["players"] = [p for p in game["players"] if p["id"] != player_id]
                 game["teams"]["A"] = [p for p in game["teams"]["A"] if p["id"] != player_id]
                 game["teams"]["B"] = [p for p in game["teams"]["B"] if p["id"] != player_id]
 
-                # Assign new host if needed
                 if game["host_id"] == player_id and game["players"]:
                     game["host_id"] = game["players"][0]["id"]
 
-                # --- FIX: Abort Round Logic ---
                 if game["status"] not in ["LOBBY", "GAME_OVER", "CLOSED"]:
                     game["status"] = "LOBBY"
                     game["abort_reason"] = f"Round Aborted! {leaver_name} disconnected."
-                    game["current_round"] = 1 # Optional: Reset rounds? Or just replay round?
+                    game["current_round"] = 1
                 
-                # Cleanup if empty
                 if not self.active_connections[room_code]:
                     del self.game_states[room_code]
                     del self.active_connections[room_code]
@@ -109,7 +123,6 @@ class ConnectionManager:
         action = data.get("action")
 
         if action == "JOIN_GAME":
-            # Assign team
             team_choice = "A" if len(game["teams"]["A"]) <= len(game["teams"]["B"]) else "B"
             new_player = {
                 "id": data["id"], "name": data["name"], 
@@ -120,21 +133,21 @@ class ConnectionManager:
                 game["teams"][team_choice].append(new_player)
             await self.broadcast(room_code)
 
-        # ... (Keep all other game logic identical to previous version) ...
-        # Just ensure you include the rest of the existing logic below here
-        # For brevity, I am not pasting the logic for VOTING/AUCTION again 
-        # as it didn't change, but make sure it is in your file!
         elif action == "START_GAME":
-             # clear abort reason when starting
-             game["abort_reason"] = None
-             game["current_round"] = 1
-             game["scores"] = {"A": 0, "B": 0}
-             self.start_new_round(game)
-             await self.broadcast(room_code)
-        # ... (Include other handlers: UPDATE_SETTINGS, SWITCH_TEAM, CAST_VOTE, etc.)
+            if len(game["teams"]["A"]) < 2 or len(game["teams"]["B"]) < 2:
+                game["last_message"] = "Cannot Start! Each team needs at least 2 players."
+                await self.broadcast(room_code)
+                return
+
+            game["abort_reason"] = None
+            game["current_round"] = 1
+            game["scores"] = {"A": 0, "B": 0}
+            self.start_new_round(game)
+            await self.broadcast(room_code)
+
         elif action == "UPDATE_SETTINGS":
             if game["status"] == "LOBBY" and data["player_id"] == game["host_id"]:
-                game["settings"]["timer"] = int(data["timer"]) * 60
+                game["settings"]["timer"] = int(data["timer"]) 
                 game["settings"]["max_rounds"] = int(data["rounds"])
                 await self.broadcast(room_code)
 
@@ -149,6 +162,29 @@ class ConnectionManager:
                     p_obj["team"] = target_team
                     game["teams"][target_team].append(p_obj)
                     await self.broadcast(room_code)
+
+        # --- NEW: REROLL TASK LOGIC ---
+        elif action == "CHANGE_TASK":
+            # Only Host can change task, and only during Nomination phase
+            if data["player_id"] == game["host_id"] and game["status"] == "NOMINATION":
+                # Pick a new random task that isn't the current one (if possible)
+                new_task = random.choice(TASKS)
+                while new_task == game["current_task"] and len(TASKS) > 1:
+                    new_task = random.choice(TASKS)
+                
+                game["current_task"] = new_task
+                # Clear votes because task changed
+                game["votes"] = {} 
+                await self.broadcast(room_code)
+
+        elif action == "SET_CUSTOM_TASK":
+            # Only Host can do this during Nomination
+            if data["player_id"] == game["host_id"] and game["status"] == "NOMINATION":
+                task_text = data["task"].strip()
+                if task_text: # Ensure not empty
+                    game["current_task"] = task_text
+                    game["votes"] = {} # Reset votes so people read the new task
+                    await self.broadcast(room_code)        
 
         elif action == "CAST_VOTE":
             game["votes"][data["player_id"]] = data["target_id"]
@@ -169,13 +205,28 @@ class ConnectionManager:
                 active = game["auction"]["holding_team"]
                 game["round_result"]["active_team"] = active
                 game["round_result"]["target"] = game["auction"]["current_bid"]
+                game["round_result"]["live_bubbles"] = [] 
                 game["status"] = "PERFORMANCE"
                 await self.broadcast(room_code)
 
+        elif action == "LIVE_TYPING":
+            game["round_result"]["live_bubbles"] = data["bubbles"]
+            await self.broadcast(room_code)
+
         elif action == "SUBMIT_ANSWERS":
             answers = data["answers"]
-            game["round_result"]["answers"] = [{"word": w, "valid": True} for w in answers]
-            game["status"] = "VALIDATION"
+            target = game["round_result"]["target"]
+            active = game["round_result"]["active_team"]
+            challenger = "B" if active == "A" else "A"
+
+            if len(answers) < target:
+                game["scores"][challenger] += 1
+                game["last_message"] = f"Team {active} Failed! Only submitted {len(answers)}/{target}."
+                self.check_next_round(game)
+            else:
+                game["round_result"]["answers"] = [{"word": w, "valid": True} for w in answers]
+                game["status"] = "VALIDATION"
+            
             await self.broadcast(room_code)
 
         elif action == "GIVE_UP":
@@ -227,6 +278,7 @@ class ConnectionManager:
         game["votes"] = {}
         game["boys"] = {"A": None, "B": None}
         game["auction"] = {"current_bid": 0, "holding_team": None}
+        game["round_result"]["live_bubbles"] = []
 
     def check_next_round(self, game):
         if game["current_round"] >= game["settings"]["max_rounds"]:
@@ -241,10 +293,16 @@ class ConnectionManager:
             members = [p["id"] for p in game["teams"][team_name]]
             for v, t in game["votes"].items():
                 if v in members: team_votes[t] = team_votes.get(t, 0) + 1
+            
             if not team_votes: boy_id = random.choice(members)
             else: boy_id = random.choice([pid for pid, c in team_votes.items() if c == max(team_votes.values())])
+            
             game["boys"][team_name] = boy_id
+            
             rem = [p["id"] for p in game["teams"][team_name] if p["id"] != boy_id]
-            game["backers"][team_name] = random.choice(rem)
+            if rem:
+                game["backers"][team_name] = random.choice(rem)
+            else:
+                game["backers"][team_name] = boy_id
 
 manager = ConnectionManager()
