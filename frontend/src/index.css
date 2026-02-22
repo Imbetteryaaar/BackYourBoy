@@ -4,10 +4,10 @@
 
 body {
   @apply bg-cream text-ink overflow-x-hidden;
-  /* subtle dot pattern */
   background-image: radial-gradient(#2D3436 1px, transparent 1px);
   background-size: 24px 24px; 
-  min-height: 100vh;
+  /* Change min-height from 100vh to 100dvh (dynamic viewport height) */
+  min-height: 100dvh; 
 }
 
 /* THE NEW CARD STYLE: Thick border, hard shadow, white fill */

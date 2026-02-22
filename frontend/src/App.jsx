@@ -7,7 +7,7 @@ import Gameplay from './components/Gameplay';
 import ValidationScreen from './components/ValidationScreen';
 import GameOver from './components/GameOver';
 
-const WS_URL = "ws://localhost:8000/ws";
+const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
 
 function App() {
   const [player, setPlayer] = useState(null);
@@ -17,7 +17,12 @@ function App() {
   const ws = useRef(null);
 
   useEffect(() => {
-    if (player && roomCode && !ws.current) {
+    let reconnectTimer;
+
+    const connectWebSocket = () => {
+      // Don't connect if we lack details or are already connected
+      if (!player || !roomCode || ws.current) return;
+
       setConnectionStatus("CONNECTING"); 
       
       ws.current = new WebSocket(`${WS_URL}/${roomCode}/${player.id}`);
@@ -48,9 +53,27 @@ function App() {
             setConnectionStatus("ERROR_ROOM_NOT_FOUND");
         } else {
             setConnectionStatus("DISCONNECTED");
+            
+            // MOBILE FIX: Automatically try to reconnect every 2 seconds
+            console.log("Connection lost. Attempting to reconnect...");
+            reconnectTimer = setTimeout(() => {
+                connectWebSocket();
+            }, 2000);
         }
       };
-    }
+    };
+
+    // Start the initial connection
+    connectWebSocket();
+
+    // Cleanup function when component unmounts
+    return () => {
+        if (ws.current) {
+            ws.current.close();
+            ws.current = null;
+        }
+        clearTimeout(reconnectTimer);
+    };
   }, [player, roomCode]);
 
   const handleJoin = (name, avatar, code) => {
@@ -102,9 +125,10 @@ function App() {
     return (
         <div className="flex flex-col items-center justify-center h-screen bg-cream p-6 text-center">
              <div className="fun-card p-8 max-w-sm w-full animate-pop border-red-500">
-                <div className="text-6xl mb-4">🔌</div>
-                <h2 className="text-2xl font-black text-red-500 mb-4">Connection Lost</h2>
-                <button onClick={() => window.location.reload()} className="w-full btn-primary py-4">Reconnect</button>
+                <div className="text-6xl mb-4 animate-pulse">🔌</div>
+                <h2 className="text-2xl font-black text-red-500 mb-2">Connection Lost</h2>
+                <p className="text-gray-500 font-bold animate-pulse">Reconnecting automatically...</p>
+                <p className="text-sm text-gray-400 mt-2">Please wait, rescuing your session.</p>
             </div>
         </div>
     );
@@ -163,7 +187,6 @@ function App() {
             onVote={(targetId) => sendAction("CAST_VOTE", { target_id: targetId, team: myTeam })} 
             isHost={player.id === gameState.host_id}
             onReroll={() => sendAction("CHANGE_TASK")}
-            // --- NEW PROP HERE ---
             onCustomTask={(text) => sendAction("SET_CUSTOM_TASK", { task: text })}
           />
         )}
@@ -186,14 +209,12 @@ function App() {
             isActiveTeam={gameState.round_result.active_team === myTeam}
             isBoy={gameState.boys[myTeam] === player.id}
             timeLimit={gameState.settings.timer}
-            // LIVE TYPING PROPS
             onLiveUpdate={(bubbles) => sendAction("LIVE_TYPING", { bubbles })} 
             onSubmit={(answers) => sendAction("SUBMIT_ANSWERS", { answers })}
             onGiveUp={() => sendAction("GIVE_UP")}
             liveBubbles={gameState.round_result.live_bubbles || []}
           />
         )}
-
 
         {gameState.status === "VALIDATION" && (
           <ValidationScreen 
