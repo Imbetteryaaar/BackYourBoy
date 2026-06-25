@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Avatar from 'react-nice-avatar';
+import Avatar from './Avatar';
 import { motion } from 'framer-motion';
 import { play } from '../lib/sound';
 

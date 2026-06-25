@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Avatar, { genConfig } from 'react-nice-avatar';
+import Avatar, { genConfig } from './Avatar';
 import { motion } from 'framer-motion';
 import Mascot from './Mascot';
 import { API_URL } from '../lib/config';
