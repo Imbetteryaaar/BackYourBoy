@@ -2,25 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+:root { color-scheme: light; }
+
+html, body, #root { height: 100%; }
+
 body {
-  @apply bg-cream text-ink overflow-x-hidden;
-  background-image: radial-gradient(#2D3436 1px, transparent 1px);
-  background-size: 24px 24px; 
-  /* Change min-height from 100vh to 100dvh (dynamic viewport height) */
-  min-height: 100dvh; 
+  @apply text-ink font-sans;
+  margin: 0;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: linear-gradient(125deg, #FFE3EC 0%, #FFF3D6 30%, #DDF3FF 65%, #EDE4FF 100%);
+  background-size: 300% 300%;
+  animation: gradientShift 18s ease infinite;
 }
 
-/* THE NEW CARD STYLE: Thick border, hard shadow, white fill */
-.fun-card {
-  @apply bg-white border-4 border-black shadow-hard rounded-3xl;
+/* floating decorative bubbles layer is drawn per-screen */
+
+@layer components {
+  .toon-card {
+    @apply bg-white/90 backdrop-blur rounded-4xl shadow-toon border-2 border-white;
+  }
+  .toon-card-flat { @apply bg-white rounded-4xl shadow-toon-sm; }
+
+  .btn-toon {
+    @apply rounded-full font-display font-bold tracking-wide shadow-toon-sm
+           active:translate-y-1 active:shadow-none transition-all duration-150 select-none;
+  }
+  .btn-primary {
+    @apply btn-toon bg-sun text-ink py-4 px-6 text-lg
+           hover:brightness-105 hover:-translate-y-0.5;
+  }
+  .btn-grape {
+    @apply btn-toon bg-grape text-white py-4 px-6 hover:brightness-110;
+  }
+  .btn-ghost {
+    @apply btn-toon bg-white text-ink py-4 px-6 border-2 border-ink/10 hover:bg-ink/5;
+  }
+  .pill {
+    @apply rounded-full px-3 py-1 text-xs font-bold;
+  }
+  .input-toon {
+    @apply w-full rounded-2xl border-2 border-ink/10 bg-white px-4 py-4 text-center
+           font-display font-semibold text-xl outline-none
+           focus:border-grape focus:ring-4 focus:ring-grape/20 transition;
+  }
 }
 
-/* BUTTONS */
-.btn-primary {
-  @apply bg-pop-yellow border-4 border-black shadow-hard rounded-xl font-black uppercase tracking-widest active:translate-y-1 active:shadow-none transition-all hover:bg-yellow-300;
+/* Range sliders */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  height: 12px; border-radius: 999px; background: rgba(59,46,74,0.12); cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #8B5CF6; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #8B5CF6; border: 3px solid #fff;
 }
 
-.glass-panel {
-  /* Retaining glass panel class for compatibility, but styled to match Pop Art */
-  @apply bg-white border-4 border-black shadow-hard rounded-3xl;
-}
+/* Nice scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.4); border-radius: 999px; }
+
+.text-stroke { -webkit-text-stroke: 2px #3B2E4A; }
+.no-tap { -webkit-tap-highlight-color: transparent; }

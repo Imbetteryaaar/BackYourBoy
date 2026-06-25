@@ -1,78 +1,78 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import MainMenu from './components/MainMenu';
 import Lobby from './components/Lobby';
 import VotingBooth from './components/VotingBooth';
 import AuctionHouse from './components/AuctionHouse';
+import StakesScreen from './components/StakesScreen';
 import Gameplay from './components/Gameplay';
+import SpeakConfirm from './components/SpeakConfirm';
 import ValidationScreen from './components/ValidationScreen';
 import GameOver from './components/GameOver';
+import Background from './components/Background';
+import Loading from './components/Loading';
+import { WS_URL } from './lib/config';
+import { play, toggleMute, isMuted } from './lib/sound';
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+function SoundButton() {
+  const [muted, setMuted] = useState(isMuted());
+  return (
+    <button
+      onClick={() => { setMuted(toggleMute()); }}
+      className="fixed top-3 right-3 z-[60] w-11 h-11 rounded-full bg-white/90 shadow-toon-sm
+                 flex items-center justify-center text-xl active:translate-y-0.5"
+      aria-label="Toggle sound"
+    >
+      {muted ? '🔇' : '🔊'}
+    </button>
+  );
+}
 
 function App() {
   const [player, setPlayer] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [roomCode, setRoomCode] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState("IDLE"); 
+  const [connectionStatus, setConnectionStatus] = useState('IDLE');
   const ws = useRef(null);
 
   useEffect(() => {
     let reconnectTimer;
-
     const connectWebSocket = () => {
-      // Don't connect if we lack details or are already connected
       if (!player || !roomCode || ws.current) return;
-
-      setConnectionStatus("CONNECTING"); 
-      
+      setConnectionStatus('CONNECTING');
       ws.current = new WebSocket(`${WS_URL}/${roomCode}/${player.id}`);
-      
+
       ws.current.onopen = () => {
-        setConnectionStatus("CONNECTED");
+        setConnectionStatus('CONNECTED');
         ws.current.send(JSON.stringify({
-          action: "JOIN_GAME",
-          id: player.id, name: player.name, avatar: player.avatar
+          action: 'JOIN_GAME', id: player.id, name: player.name, avatar: player.avatar,
         }));
       };
-
       ws.current.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg.type === "UPDATE_STATE") {
-            if (msg.state.status === "CLOSED") {
-                alert("Room closed by Host.");
-                window.location.reload();
-            } else {
-                setGameState(msg.state);
-            }
+        if (msg.type === 'UPDATE_STATE') {
+          if (msg.state.status === 'CLOSED') {
+            alert('Room closed by Host.');
+            window.location.reload();
+          } else {
+            setGameState(msg.state);
+          }
         }
       };
-
       ws.current.onclose = (event) => {
         ws.current = null;
         if (event.code === 4000) {
-            setConnectionStatus("ERROR_ROOM_NOT_FOUND");
+          setConnectionStatus('ERROR_ROOM_NOT_FOUND');
         } else {
-            setConnectionStatus("DISCONNECTED");
-            
-            // MOBILE FIX: Automatically try to reconnect every 2 seconds
-            console.log("Connection lost. Attempting to reconnect...");
-            reconnectTimer = setTimeout(() => {
-                connectWebSocket();
-            }, 2000);
+          setConnectionStatus('DISCONNECTED');
+          reconnectTimer = setTimeout(connectWebSocket, 2000);
         }
       };
     };
-
-    // Start the initial connection
     connectWebSocket();
-
-    // Cleanup function when component unmounts
     return () => {
-        if (ws.current) {
-            ws.current.close();
-            ws.current = null;
-        }
-        clearTimeout(reconnectTimer);
+      if (ws.current) { ws.current.close(); ws.current = null; }
+      clearTimeout(reconnectTimer);
     };
   }, [player, roomCode]);
 
@@ -81,159 +81,147 @@ function App() {
     setPlayer({ id, name, avatar });
     setRoomCode(code);
   };
-
   const resetToMenu = () => {
-      setPlayer(null);
-      setRoomCode(null);
-      setConnectionStatus("IDLE");
-      setGameState(null);
+    setPlayer(null); setRoomCode(null); setConnectionStatus('IDLE'); setGameState(null);
   };
-
   const sendAction = (action, payload = {}) => {
-    if(ws.current && ws.current.readyState === WebSocket.OPEN) {
-        ws.current.send(JSON.stringify({ action, ...payload, player_id: player.id }));
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ action, ...payload, player_id: player.id }));
     }
   };
 
-  // --- VIEWS ---
+  // ---- pre-game screens ----
+  if (!player || !roomCode) return (<><Background /><SoundButton /><MainMenu onJoin={handleJoin} /></>);
 
-  if (!player || !roomCode) return <MainMenu onJoin={handleJoin} />;
-
-  if (connectionStatus === "ERROR_ROOM_NOT_FOUND") {
-      return (
-        <div className="flex flex-col items-center justify-center h-screen bg-cream p-6 text-center">
-            <div className="fun-card p-8 max-w-sm w-full animate-pop">
-                <div className="text-6xl mb-4">🏠❓</div>
-                <h2 className="text-2xl font-black text-red-500 mb-2">Room Not Found</h2>
-                <p className="text-gray-500 mb-6">We couldn't find room <strong>{roomCode}</strong>.</p>
-                <button onClick={resetToMenu} className="w-full btn-primary py-4">Try Another Code</button>
-            </div>
-        </div>
-      );
-  }
-
-  if (connectionStatus === "CONNECTING" || !gameState) {
-      return (
-        <div className="flex flex-col items-center justify-center h-screen bg-cream">
-            <div className="w-20 h-20 border-8 border-black border-t-transparent rounded-full animate-spin mb-6"></div>
-            <div className="text-xl font-black tracking-widest animate-pulse">CONNECTING...</div>
-        </div>
-      );
-  }
-
-  if (connectionStatus === "DISCONNECTED") {
+  if (connectionStatus === 'ERROR_ROOM_NOT_FOUND') {
     return (
-        <div className="flex flex-col items-center justify-center h-screen bg-cream p-6 text-center">
-             <div className="fun-card p-8 max-w-sm w-full animate-pop border-red-500">
-                <div className="text-6xl mb-4 animate-pulse">🔌</div>
-                <h2 className="text-2xl font-black text-red-500 mb-2">Connection Lost</h2>
-                <p className="text-gray-500 font-bold animate-pulse">Reconnecting automatically...</p>
-                <p className="text-sm text-gray-400 mt-2">Please wait, rescuing your session.</p>
-            </div>
-        </div>
+      <><Background /><SoundButton />
+        <div className="flex flex-col items-center justify-center min-h-[100dvh] p-6 text-center">
+          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            className="toon-card p-8 max-w-sm w-full">
+            <div className="text-6xl mb-4">🏚️</div>
+            <h2 className="text-2xl font-display font-bold text-team-a-dk mb-2">Room Not Found</h2>
+            <p className="text-ink/50 mb-6">We couldn't find room <strong>{roomCode}</strong>.</p>
+            <button onClick={resetToMenu} className="btn-primary w-full">Try Another Code</button>
+          </motion.div>
+        </div></>
     );
   }
+  if (connectionStatus === 'CONNECTING' || !gameState) {
+    return (<><Background /><SoundButton /><Loading label="CONNECTING" /></>);
+  }
+  if (connectionStatus === 'DISCONNECTED') {
+    return (<><Background /><SoundButton /><Loading label="RECONNECTING" /></>);
+  }
 
-  const mySyncedPlayer = gameState.players.find(p => p.id === player.id);
-  const myTeam = mySyncedPlayer ? mySyncedPlayer.team : "A"; 
+  const mySyncedPlayer = gameState.players.find((p) => p.id === player.id);
+  const myTeam = mySyncedPlayer ? mySyncedPlayer.team : 'A';
+  const isHost = player.id === gameState.host_id;
+
+  const screenProps = { key: gameState.status };
+  const transition = {
+    initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 }, transition: { duration: 0.25 },
+  };
 
   return (
-    <div className="min-h-screen font-sans pb-10">
-      {gameState.status !== "GAME_OVER" && (
-          <div className="pt-4 px-4 pb-2 flex justify-center sticky top-0 z-50">
-            <div className="bg-white border-4 border-black shadow-hard px-6 py-2 rounded-full flex items-center gap-6">
-                <div className="flex flex-col items-center">
-                    <span className="text-[10px] font-black tracking-widest text-pop-pink">TEAM A</span>
-                    <span className="text-2xl font-black leading-none">{gameState.scores.A}</span>
-                </div>
-                <div className="h-8 w-[2px] bg-black/10"></div>
-                <div className="flex flex-col items-center">
-                    <div className="text-black font-black italic tracking-tighter text-xl">BYB</div>
-                    <span className="text-[10px] bg-black text-white px-2 rounded-md font-bold">{roomCode}</span>
-                </div>
-                <div className="h-8 w-[2px] bg-black/10"></div>
-                <div className="flex flex-col items-center">
-                    <span className="text-[10px] font-black tracking-widest text-pop-blue">TEAM B</span>
-                    <span className="text-2xl font-black leading-none">{gameState.scores.B}</span>
-                </div>
+    <div className="min-h-[100dvh] pb-10">
+      <Background />
+      <SoundButton />
+
+      {/* Scoreboard */}
+      {gameState.status !== 'GAME_OVER' && (
+        <div className="pt-3 px-4 flex justify-center sticky top-0 z-50">
+          <div className="bg-white/95 backdrop-blur shadow-toon-sm px-5 py-2 rounded-full flex items-center gap-5">
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-bold tracking-widest text-team-a">PINK</span>
+              <span className="text-2xl font-display font-bold leading-none">{gameState.scores.A}</span>
+            </div>
+            <div className="flex flex-col items-center px-1">
+              <div className="font-display font-bold text-ink text-lg leading-none">BYB</div>
+              <span className="text-[10px] bg-grape text-white px-2 rounded-full font-bold tracking-widest mt-0.5">{roomCode}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-bold tracking-widest text-team-b">BLUE</span>
+              <span className="text-2xl font-display font-bold leading-none">{gameState.scores.B}</span>
             </div>
           </div>
+        </div>
       )}
 
       {gameState.abort_reason && (
-          <div className="mx-4 mt-4 bg-red-100 border-4 border-red-500 text-red-600 p-4 rounded-2xl text-center font-bold animate-bounce shadow-hard">
-              🚨 {gameState.abort_reason}
-          </div>
+        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+          className="mx-4 mt-4 bg-team-a/15 border-2 border-team-a text-team-a-dk p-3 rounded-3xl text-center font-bold shadow-toon-sm">
+          🚨 {gameState.abort_reason}
+        </motion.div>
       )}
 
-      <div className="container mx-auto px-4 mt-6">
-        {gameState.status === "LOBBY" && (
-          <Lobby 
-            gameState={gameState} 
-            playerId={player.id}
-            onStart={() => sendAction("START_GAME")}
-            onSettingChange={(t, r) => sendAction("UPDATE_SETTINGS", {timer: t, rounds: r})}
-            onSwitchTeam={(tid, nteam) => sendAction("SWITCH_TEAM", {target_id: tid, new_team: nteam})}
-            onExit={resetToMenu}
-            />
-        )}
-        
-        {gameState.status === "NOMINATION" && (
-          <VotingBooth 
-            players={gameState.players} 
-            task={gameState.current_task}
-            myTeam={myTeam}
-            votes={gameState.votes} 
-            onVote={(targetId) => sendAction("CAST_VOTE", { target_id: targetId, team: myTeam })} 
-            isHost={player.id === gameState.host_id}
-            onReroll={() => sendAction("CHANGE_TASK")}
-            onCustomTask={(text) => sendAction("SET_CUSTOM_TASK", { task: text })}
-          />
-        )}
-        
-        {gameState.status === "AUCTION" && (
-          <AuctionHouse 
-            auctionState={gameState.auction}
-            myTeam={myTeam}
-            isBacker={gameState.backers[myTeam] === player.id}
-            isBoy={gameState.boys[myTeam] === player.id}
-            onBid={(amount) => sendAction("PLACE_BID", { amount, team: myTeam })}
-            onBullshit={() => sendAction("CALL_BULLSHIT", { team: myTeam })}
-          />
-        )}
-
-        {gameState.status === "PERFORMANCE" && (
-          <Gameplay 
-            task={gameState.current_task}
-            target={gameState.round_result.target}
-            isActiveTeam={gameState.round_result.active_team === myTeam}
-            isBoy={gameState.boys[myTeam] === player.id}
-            timeLimit={gameState.settings.timer}
-            onLiveUpdate={(bubbles) => sendAction("LIVE_TYPING", { bubbles })} 
-            onSubmit={(answers) => sendAction("SUBMIT_ANSWERS", { answers })}
-            onGiveUp={() => sendAction("GIVE_UP")}
-            liveBubbles={gameState.round_result.live_bubbles || []}
-          />
-        )}
-
-        {gameState.status === "VALIDATION" && (
-          <ValidationScreen 
-            answers={gameState.round_result.answers}
-            target={gameState.round_result.target}
-            isOpponent={gameState.round_result.active_team !== myTeam}
-            onToggle={(idx) => sendAction("TOGGLE_VALIDITY", { index: idx })}
-            onFinalize={() => sendAction("FINALIZE_ROUND")}
-          />
-        )}
-
-        {gameState.status === "GAME_OVER" && (
-            <GameOver 
-                gameState={gameState}
-                isHost={gameState.host_id === player.id}
-                onPlayAgain={() => sendAction("PLAY_AGAIN")}
-                onEndRoom={() => sendAction("END_ROOM")}
-            />
-        )}
+      <div className="container mx-auto px-4 mt-5">
+        <AnimatePresence mode="wait">
+          <motion.div {...screenProps} {...transition}>
+            {gameState.status === 'LOBBY' && (
+              <Lobby gameState={gameState} playerId={player.id}
+                onStart={() => sendAction('START_GAME')}
+                onSettingChange={(payload) => sendAction('UPDATE_SETTINGS', payload)}
+                onTogglePack={(pack) => sendAction('TOGGLE_PACK', { pack })}
+                onSwitchTeam={(tid, nteam) => sendAction('SWITCH_TEAM', { target_id: tid, new_team: nteam })}
+                onExit={resetToMenu} />
+            )}
+            {gameState.status === 'NOMINATION' && (
+              <VotingBooth players={gameState.players} task={gameState.current_task}
+                myTeam={myTeam} votes={gameState.votes} mode={gameState.round_result.mode}
+                onVote={(targetId) => sendAction('CAST_VOTE', { target_id: targetId, team: myTeam })}
+                isHost={isHost}
+                onReroll={() => sendAction('CHANGE_TASK')}
+                onCustomTask={(text) => sendAction('SET_CUSTOM_TASK', { task: text })} />
+            )}
+            {gameState.status === 'AUCTION' && (
+              <AuctionHouse auctionState={gameState.auction} myTeam={myTeam}
+                isBacker={gameState.backers[myTeam] === player.id}
+                isBoy={gameState.boys[myTeam] === player.id}
+                task={gameState.current_task} mode={gameState.round_result.mode}
+                onBid={(amount) => sendAction('PLACE_BID', { amount, team: myTeam })}
+                onBullshit={() => sendAction('CALL_BULLSHIT', { team: myTeam })} />
+            )}
+            {gameState.status === 'STAKES' && (
+              <StakesScreen rr={gameState.round_result} myTeam={myTeam}
+                isBacker={gameState.backers[myTeam] === player.id}
+                isBoy={gameState.boys[myTeam] === player.id}
+                onStart={(double) => sendAction('START_PERFORMANCE', { double })} />
+            )}
+            {gameState.status === 'PERFORMANCE' && (
+              <Gameplay task={gameState.current_task} target={gameState.round_result.target}
+                isActiveTeam={gameState.round_result.active_team === myTeam}
+                isBoy={gameState.boys[myTeam] === player.id}
+                timeLimit={gameState.settings.timer}
+                mode={gameState.round_result.mode}
+                stakes={gameState.round_result.stakes}
+                liveBubbles={gameState.round_result.live_bubbles || []}
+                liveCount={gameState.round_result.live_count || 0}
+                onLiveUpdate={(bubbles) => sendAction('LIVE_TYPING', { bubbles })}
+                onLiveCount={(count) => sendAction('LIVE_COUNT', { count })}
+                onSubmit={(payload) => sendAction('SUBMIT_ANSWERS', payload)}
+                onGiveUp={() => sendAction('GIVE_UP')} />
+            )}
+            {gameState.status === 'SPEAK_CONFIRM' && (
+              <SpeakConfirm rr={gameState.round_result} task={gameState.current_task}
+                isOpponent={gameState.round_result.active_team !== myTeam}
+                onConfirm={(accepted) => sendAction('CONFIRM_SPEAK', { accepted })} />
+            )}
+            {gameState.status === 'VALIDATION' && (
+              <ValidationScreen answers={gameState.round_result.answers}
+                target={gameState.round_result.target}
+                isOpponent={gameState.round_result.active_team !== myTeam}
+                onToggle={(idx) => sendAction('TOGGLE_VALIDITY', { index: idx })}
+                onFinalize={() => sendAction('FINALIZE_ROUND')} />
+            )}
+            {gameState.status === 'GAME_OVER' && (
+              <GameOver gameState={gameState} isHost={isHost}
+                onPlayAgain={() => sendAction('PLAY_AGAIN')}
+                onEndRoom={() => sendAction('END_ROOM')} />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
