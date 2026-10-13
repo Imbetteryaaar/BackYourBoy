@@ -9,7 +9,6 @@
   <img alt="React" src="https://img.shields.io/badge/React-19-4FC0E8?logo=react&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-WebSockets-34D399?logo=fastapi&logoColor=white">
   <img alt="Vite" src="https://img.shields.io/badge/Vite-Tailwind-8B5CF6?logo=vite&logoColor=white">
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-FFD23F">
 </p>
 
 > Play together from any phone or laptop — just share a 4-letter room code. No installs, no accounts.
@@ -170,7 +169,3 @@ Open `backend/app/categories.py` and add prompts to any pack's `tasks` list, or 
 ## 🤝 Contributing
 
 Issues and PRs welcome! Fun directions: more category packs, new power-ups, persistent leaderboards, spectator mode, or theme packs.
-
-## 📜 License
-
-[MIT](./LICENSE) — do whatever, have fun.
